@@ -21,7 +21,7 @@ import java.util.*;
  */
 public class Path implements Iterable<String>, Comparable<Path>, Serializable
 {
-    protected List<String> components;
+    private List<String> components;
     /** Creates a new path which represents the root directory. */
     public Path()
     {
@@ -145,7 +145,9 @@ public class Path implements Iterable<String>, Comparable<Path>, Serializable
      */
     public String last()
     {
-        throw new UnsupportedOperationException("not implemented");
+        if(this.isRoot())
+            throw new IllegalArgumentException("Root has no last component");
+        return this.components.get(this.components.size()-1);
     }
 
     /** Determines if the given path is a subpath of this path.
@@ -160,7 +162,14 @@ public class Path implements Iterable<String>, Comparable<Path>, Serializable
      */
     public boolean isSubpath(Path other)
     {
-        throw new UnsupportedOperationException("not implemented");
+        if(this.isRoot() && other.isRoot()) return true;
+
+        List<String> otherComponents = other.components;
+        if(otherComponents.size() > this.components.size()) return false;
+        for(int i=0;i<otherComponents.size();i++){
+            if(!otherComponents.get(i).equals(this.components.get(i)))  return false;
+        }
+        return true;
     }
 
     /** Converts the path to <code>File</code> object.
