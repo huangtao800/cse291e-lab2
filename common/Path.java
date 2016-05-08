@@ -227,7 +227,8 @@ public class Path implements Iterable<String>, Comparable<Path>, Serializable
     @Override
     public int compareTo(Path other)
     {
-        throw new UnsupportedOperationException("not implemented");
+        // Simply compare the absolute path
+        return this.toString().compareTo(other.toString());
     }
 
     /** Compares two paths for equality.
