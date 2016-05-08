@@ -1,7 +1,9 @@
 package storage;
 
 import java.io.*;
+import java.lang.reflect.Array;
 import java.net.*;
+import java.util.ArrayList;
 
 import common.*;
 import rmi.*;
@@ -83,7 +85,41 @@ public class StorageServer implements Storage, Command
         throws RMIException, UnknownHostException, FileNotFoundException
     {
         if(!this.root.exists()) throw new FileNotFoundException("Root not found");
-        throw new UnsupportedOperationException("not implemented");
+        Storage clientStub = null;
+        Command commandStub = null;
+        try{
+            InetSocketAddress clientAddress = new InetSocketAddress(hostname, client_port);
+            clientStub = Stub.create(Storage.class, clientAddress);
+
+            InetSocketAddress commandAddress = new InetSocketAddress(hostname, command_port);
+            commandStub = Stub.create(Command.class, commandAddress);
+
+        }catch (Exception e){
+            e.printStackTrace();
+            throw new UnknownHostException("Invalid address");
+        }
+
+        try {
+            ArrayList<Path> paths = new ArrayList<>();
+            Path rootPath = new Path();
+            paths.add(rootPath);
+            recursiveList(this.root, rootPath, paths);
+            naming_server.register(clientStub, commandStub, paths.toArray(new Path[0]));
+        }catch (Exception e){
+            e.printStackTrace();
+            throw new RMIException("Storage cannot be registered");
+        }
+    }
+
+    private void recursiveList(File file, Path parent, ArrayList<Path> paths){
+        File[] files = file.listFiles();
+        for(File f : files){
+            Path p = new Path(parent, f.getName());
+            paths.add(p);
+            if(f.isDirectory()){
+                recursiveList(f, p, paths);
+            }
+        }
     }
 
     /** Stops the storage server.
