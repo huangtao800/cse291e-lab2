@@ -40,6 +40,8 @@ public class Path implements Iterable<String>, Comparable<Path>, Serializable
     */
     public Path(Path path, String component)
     {
+        if(!component.startsWith("/") || component.contains(";"))
+            throw new IllegalArgumentException("Illegal path");
         this.components = new ArrayList<>(path.components);
         this.components.add(component);
     }
@@ -80,7 +82,8 @@ public class Path implements Iterable<String>, Comparable<Path>, Serializable
     @Override
     public Iterator<String> iterator()
     {
-        throw new UnsupportedOperationException("not implemented");
+
+        return new PathIterator(this.components.iterator());
     }
 
     /** Lists the paths of all files in a directory tree on the local
@@ -95,7 +98,14 @@ public class Path implements Iterable<String>, Comparable<Path>, Serializable
      */
     public static Path[] list(File directory) throws FileNotFoundException
     {
-        throw new UnsupportedOperationException("not implemented");
+        if(!directory.isDirectory())
+            throw new IllegalArgumentException("File not directory");
+        String[] names = directory.list();
+        Path[] result = new Path[names.length];
+        for(int i=0;i<names.length;i++){
+            result[i] = new Path(names[i]);
+        }
+        return result;
     }
 
     /** Determines whether the path represents the root directory.
@@ -230,5 +240,13 @@ public class Path implements Iterable<String>, Comparable<Path>, Serializable
     public String toString()
     {
         throw new UnsupportedOperationException("not implemented");
+    }
+
+    public static void main(String[] args){
+        File f = new File("/Users/tao/Documents/UCSD_Study/2016_Spring/cse291E00/labs/lab2/cse291e-lab2");
+        String[] ps = f.list();
+        for(String s: ps){
+            System.out.println(s);
+        }
     }
 }
