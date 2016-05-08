@@ -21,7 +21,7 @@ import java.util.*;
  */
 public class Path implements Iterable<String>, Comparable<Path>, Serializable
 {
-    protected ArrayList<String> components;
+    protected List<String> components;
     /** Creates a new path which represents the root directory. */
     public Path()
     {
@@ -40,7 +40,7 @@ public class Path implements Iterable<String>, Comparable<Path>, Serializable
     */
     public Path(Path path, String component)
     {
-        if(!component.startsWith("/") || component.contains(";"))
+        if(!component.startsWith("/") || component.contains(":") || component.contains(File.separator))
             throw new IllegalArgumentException("Illegal path");
         this.components = new ArrayList<>(path.components);
         this.components.add(component);
@@ -60,15 +60,15 @@ public class Path implements Iterable<String>, Comparable<Path>, Serializable
      */
     public Path(String path)
     {
-        this.components = new ArrayList<String>();
-        if(!path.startsWith("/") || path.contains(";"))
+        this.components = new ArrayList<>();
+        if(path.equals("")) return;
+        if(!path.startsWith("/") || path.contains(":"))
             throw new IllegalArgumentException("Illegal path");
         String[] splits = path.split("/");
         for(String c : splits){
             if(c.equals(""))    continue;
             components.add(c);
         }
-//        throw new UnsupportedOperationException("not implemented");
     }
 
     /** Returns an iterator over the components of the path.
@@ -98,6 +98,8 @@ public class Path implements Iterable<String>, Comparable<Path>, Serializable
      */
     public static Path[] list(File directory) throws FileNotFoundException
     {
+        if(!directory.exists())
+            throw new FileNotFoundException("Directory not found");
         if(!directory.isDirectory())
             throw new IllegalArgumentException("File not directory");
         String[] names = directory.list();
@@ -115,7 +117,7 @@ public class Path implements Iterable<String>, Comparable<Path>, Serializable
      */
     public boolean isRoot()
     {
-        throw new UnsupportedOperationException("not implemented");
+        return this.components.size() == 0;
     }
 
     /** Returns the path to the parent of this path.
@@ -125,7 +127,14 @@ public class Path implements Iterable<String>, Comparable<Path>, Serializable
      */
     public Path parent()
     {
-        throw new UnsupportedOperationException("not implemented");
+        if(this.components.size()==0)
+            throw new IllegalArgumentException("Root has no parent");
+        String parentPath = "";
+        for(int i=0;i<this.components.size()-1;i++){
+            parentPath += "/";
+            parentPath += this.components.get(i);
+        }
+        return new Path(parentPath);
     }
 
     /** Returns the last component in the path.
@@ -239,14 +248,17 @@ public class Path implements Iterable<String>, Comparable<Path>, Serializable
     @Override
     public String toString()
     {
-        throw new UnsupportedOperationException("not implemented");
+        if(this.components.size()==0)   return "/";
+        StringBuffer sb = new StringBuffer();
+        for(String c : this.components){
+            sb.append("/");
+            sb.append(c);
+        }
+        return sb.toString();
     }
 
     public static void main(String[] args){
-        File f = new File("/Users/tao/Documents/UCSD_Study/2016_Spring/cse291E00/labs/lab2/cse291e-lab2");
-        String[] ps = f.list();
-        for(String s: ps){
-            System.out.println(s);
-        }
+        Path p = new Path("/a");
+        System.out.println(p.parent());
     }
 }
