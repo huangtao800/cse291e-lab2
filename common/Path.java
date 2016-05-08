@@ -40,7 +40,7 @@ public class Path implements Iterable<String>, Comparable<Path>, Serializable
     */
     public Path(Path path, String component)
     {
-        if(!component.startsWith("/") || component.contains(":") || component.contains(File.separator))
+        if(component.equals("") || component.contains(":") || component.contains(File.separator))
             throw new IllegalArgumentException("Illegal path");
         this.components = new ArrayList<>(path.components);
         this.components.add(component);
