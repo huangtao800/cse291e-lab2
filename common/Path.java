@@ -180,7 +180,12 @@ public class Path implements Iterable<String>, Comparable<Path>, Serializable
      */
     public File toFile(File root)
     {
-        throw new UnsupportedOperationException("not implemented");
+        String absPath = root.getAbsolutePath();
+        for(String c : components){
+            absPath += "/";
+            absPath += c;
+        }
+        return new File(absPath);
     }
 
     /** Compares this path to another.
@@ -236,14 +241,21 @@ public class Path implements Iterable<String>, Comparable<Path>, Serializable
     @Override
     public boolean equals(Object other)
     {
-        throw new UnsupportedOperationException("not implemented");
+        if(other == null)   return false;
+        if(!(other instanceof Path))  return false;
+        if(other == this)   return true;
+        return this.hashCode() == other.hashCode();
     }
 
     /** Returns the hash code of the path. */
     @Override
     public int hashCode()
     {
-        throw new UnsupportedOperationException("not implemented");
+        int r = 0;
+        for(String c : this.components){
+            r += c.hashCode();
+        }
+        return r;
     }
 
     /** Converts the path to a string.
@@ -267,7 +279,8 @@ public class Path implements Iterable<String>, Comparable<Path>, Serializable
     }
 
     public static void main(String[] args){
-        Path p = new Path("/a");
-        System.out.println(p.parent());
+        String a = new String("abcdadfsdfasdf");
+        String b = new String("abcdadfsdfasdf");
+        System.out.println(a.hashCode() == b.hashCode());
     }
 }
