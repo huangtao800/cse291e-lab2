@@ -16,6 +16,9 @@ import naming.*;
  */
 public class StorageServer implements Storage, Command
 {
+    private File root;
+    private int client_port = 8801;
+    private int command_port = 8802;
     /** Creates a storage server, given a directory on the local filesystem, and
         ports to use for the client and command interfaces.
 
@@ -33,7 +36,10 @@ public class StorageServer implements Storage, Command
     */
     public StorageServer(File root, int client_port, int command_port)
     {
-        throw new UnsupportedOperationException("not implemented");
+        if(root == null) throw new NullPointerException("Root is null");
+        this.root = root;
+        if(client_port != 0)  this.client_port = client_port;
+        if(command_port != 0)   this.command_port = command_port;
     }
 
     /** Creats a storage server, given a directory on the local filesystem.
@@ -49,7 +55,8 @@ public class StorageServer implements Storage, Command
      */
     public StorageServer(File root)
     {
-        throw new UnsupportedOperationException("not implemented");
+        if(root == null)    throw new NullPointerException("Root is null");
+        this.root = root;
     }
 
     /** Starts the storage server and registers it with the given naming
@@ -75,6 +82,7 @@ public class StorageServer implements Storage, Command
     public synchronized void start(String hostname, Registration naming_server)
         throws RMIException, UnknownHostException, FileNotFoundException
     {
+        if(!this.root.exists()) throw new FileNotFoundException("Root not found");
         throw new UnsupportedOperationException("not implemented");
     }
 
