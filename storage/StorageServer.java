@@ -1,7 +1,6 @@
 package storage;
 
 import java.io.*;
-import java.lang.reflect.Array;
 import java.net.*;
 import java.util.ArrayList;
 
@@ -21,6 +20,8 @@ public class StorageServer implements Storage, Command
     private File root;
     private int client_port = 8801;
     private int command_port = 8802;
+    private Skeleton<Storage> clientSkeleton = null;
+    private Skeleton<Command> commandSkeleton = null;
     /** Creates a storage server, given a directory on the local filesystem, and
         ports to use for the client and command interfaces.
 
@@ -87,13 +88,15 @@ public class StorageServer implements Storage, Command
         if(!this.root.exists()) throw new FileNotFoundException("Root not found");
         Storage clientStub = null;
         Command commandStub = null;
+
         try{
             InetSocketAddress clientAddress = new InetSocketAddress(hostname, client_port);
+            clientSkeleton = new Skeleton<>(Storage.class, this, clientAddress);
             clientStub = Stub.create(Storage.class, clientAddress);
 
             InetSocketAddress commandAddress = new InetSocketAddress(hostname, command_port);
+            commandSkeleton = new Skeleton<>(Command.class, this, commandAddress);
             commandStub = Stub.create(Command.class, commandAddress);
-
         }catch (Exception e){
             e.printStackTrace();
             throw new UnknownHostException("Invalid address");
@@ -104,6 +107,9 @@ public class StorageServer implements Storage, Command
             Path rootPath = new Path();
             paths.add(rootPath);
             recursiveList(this.root, rootPath, paths);
+
+            clientSkeleton.start();
+            commandSkeleton.start();
             naming_server.register(clientStub, commandStub, paths.toArray(new Path[0]));
         }catch (Exception e){
             e.printStackTrace();
@@ -129,7 +135,8 @@ public class StorageServer implements Storage, Command
      */
     public void stop()
     {
-        throw new UnsupportedOperationException("not implemented");
+        clientSkeleton.stop();
+        commandSkeleton.stop();
     }
 
     /** Called when the storage server has shut down.
