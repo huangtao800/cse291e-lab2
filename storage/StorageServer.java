@@ -152,14 +152,24 @@ public class StorageServer implements Storage, Command
     @Override
     public synchronized long size(Path file) throws FileNotFoundException
     {
-        throw new UnsupportedOperationException("not implemented");
+        File f = file.toFile(this.root);
+        if(!f.exists() || f.isDirectory())  throw new FileNotFoundException("File not found or is a directory");
+        return f.length();
     }
 
     @Override
     public synchronized byte[] read(Path file, long offset, int length)
         throws FileNotFoundException, IOException
     {
-        throw new UnsupportedOperationException("not implemented");
+        if(length < 0)  throw new IndexOutOfBoundsException("Length is negative");
+
+        File f = file.toFile(this.root);
+        RandomAccessFile rf = new RandomAccessFile(f, "r");
+        rf.seek(offset);
+        byte[] b = new byte[length];
+        int r = rf.read(b);
+        if(r < length) throw new IndexOutOfBoundsException("Length exceed file boundary");
+        return b;
     }
 
     @Override
