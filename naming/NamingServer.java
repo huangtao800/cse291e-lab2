@@ -33,6 +33,10 @@ import storage.*;
  */
 public class NamingServer implements Service, Registration
 {
+    private Skeleton<Service> serviceSkeleton;
+    private Skeleton<Registration> registrationSkeleton;
+    Hashtable<Path, Storage> storageTable;
+    Hashtable<Path, Command> commandTable;
     /** Creates the naming server object.
 
         <p>
@@ -40,7 +44,9 @@ public class NamingServer implements Service, Registration
      */
     public NamingServer()
     {
-        throw new UnsupportedOperationException("not implemented");
+        this.storageTable = new Hashtable<>();
+        this.commandTable = new Hashtable<>();
+//        throw new UnsupportedOperationException("not implemented");
     }
 
     /** Starts the naming server.
@@ -56,7 +62,13 @@ public class NamingServer implements Service, Registration
      */
     public synchronized void start() throws RMIException
     {
-        throw new UnsupportedOperationException("not implemented");
+        InetSocketAddress serviceAddress = new InetSocketAddress("127.0.0.1", NamingStubs.SERVICE_PORT);
+        this.serviceSkeleton = new Skeleton<>(Service.class, this, serviceAddress);
+        InetSocketAddress registrationAddress = new InetSocketAddress("127.0.0.1", NamingStubs.REGISTRATION_PORT);
+        this.registrationSkeleton = new Skeleton<>(Registration.class, this, registrationAddress);
+
+        this.serviceSkeleton.start();
+        this.registrationSkeleton.start();
     }
 
     /** Stops the naming server.
@@ -70,7 +82,9 @@ public class NamingServer implements Service, Registration
      */
     public void stop()
     {
-        throw new UnsupportedOperationException("not implemented");
+//        throw new UnsupportedOperationException("not implemented");
+        this.serviceSkeleton.stop();
+        this.registrationSkeleton.stop();
     }
 
     /** Indicates that the server has completely shut down.
@@ -100,9 +114,18 @@ public class NamingServer implements Service, Registration
     }
 
     @Override
-    public boolean isDirectory(Path path) throws FileNotFoundException
-    {
-        throw new UnsupportedOperationException("not implemented");
+    public boolean isDirectory(Path path) throws FileNotFoundException, RMIException {
+        Storage storage = storageTable.get(path);
+        if(storage == null) throw new FileNotFoundException("File not found");
+        try {
+            storage.size(path);
+            return false;
+        } catch(FileNotFoundException e){
+            return false;
+        }catch (RMIException e) {
+            e.printStackTrace();
+            throw e;
+        }
     }
 
     @Override
