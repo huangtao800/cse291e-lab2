@@ -191,20 +191,87 @@ public class StorageServer implements Storage, Command
     @Override
     public synchronized boolean create(Path file)
     {
+        Path parent = file.parent();
+        File parentFile = parent.toFile(this.root);
+        if(parentFile.exists()){
+            // Create new file
+            return createFile(file);
+        }else{
+            boolean createParent = create(parent);  // Recursively create parent
+            if(!createParent)   return false;   // Cannot create parent file
+            // Create new file
+            return createFile(file);
+        }
+    }
 
-        throw new UnsupportedOperationException("not implemented");
+    private boolean createFile(Path file){
+        String rootPath = this.root.getAbsolutePath();
+        String filePath = file.toString();
+        String absPath = rootPath + filePath;
+        try{
+            File newFile = new File(absPath);
+            newFile.createNewFile();
+            return true;
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+        return false;
     }
 
     @Override
     public synchronized boolean delete(Path path)
     {
-        throw new UnsupportedOperationException("not implemented");
+        if(path.equals(new Path())) return false;   // Cannot delete root directory
+        File f = path.toFile(this.root);
+        return deleteFile(f);
+    }
+
+    private boolean deleteFile(File f){
+        if(f.isDirectory()){
+            File[] fs = f.listFiles();
+            for(File file : fs){
+                boolean t = deleteFile(file);
+                if(!t)  return false;
+            }
+            return true;
+        }else{
+            return f.delete();
+        }
     }
 
     @Override
     public synchronized boolean copy(Path file, Storage server)
         throws RMIException, FileNotFoundException, IOException
     {
-        throw new UnsupportedOperationException("not implemented");
+        long size = server.size(file);
+        boolean create = create(file);
+        if(!create) throw new IOException("Cannot create file");
+
+        long remain = size;
+        long offset = 0;
+        try{
+            while(remain > 1000){
+                byte[] data = new byte[1000];
+                server.read(file, offset, 1000);
+                this.write(file, offset, data);
+                offset += 1000;
+                remain -= 1000;
+            }
+            if(remain > 0){
+                byte[] data = new byte[(int)remain];
+                server.read(file, offset, (int)remain);
+                this.write(file, offset, data);
+            }
+        }catch (IOException e){
+            this.delete(file);  // Some error occurs. Delete the file
+            throw e;
+        }
+        return true;
+    }
+
+    public static void main(String[] args){
+        StorageServer ss = new StorageServer(new File("/Users/tao/Documents/UCSD_Study/2016_Spring/cse291E00/labs/lab2/cse291e-lab2/naming/"));
+        Path file = new Path("/directory/a.txt");
+        ss.createFile(file);
     }
 }
