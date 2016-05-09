@@ -224,9 +224,15 @@ public class StorageServer implements Storage, Command
     @Override
     public synchronized boolean delete(Path path)
     {
-        if(path.equals(new Path())) return false;   // Cannot delete root directory
+        if(path.isRoot()) return false;   // Cannot delete root directory
         File f = path.toFile(this.root);
-        return deleteFile(f);
+        boolean t1 = deleteFile(f);
+        Path parent = path.parent();
+        File parentFile = parent.toFile(this.root);
+        if(!parent.isRoot() && parentFile.listFiles().length == 0){
+            return delete(parent);
+        }
+        return t1;
     }
 
     private boolean deleteFile(File f){
@@ -237,10 +243,8 @@ public class StorageServer implements Storage, Command
                 boolean t = deleteFile(file);
                 if(!t)  return false;
             }
-            return true;
-        }else{
-            return f.delete();
         }
+        return f.delete();
     }
 
     @Override
