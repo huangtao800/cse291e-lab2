@@ -172,6 +172,16 @@ public class Path implements Iterable<String>, Comparable<Path>, Serializable
         return true;
     }
 
+    /**
+     *
+     * @param other
+     * @return true if this path is a direct child of other
+     */
+    public boolean isDirectChild(Path other){
+        return this.components.size() == other.components.size() + 1
+                && this.isSubpath(other);
+    }
+
     /** Converts the path to <code>File</code> object.
 
         @param root The resulting <code>File</code> object is created relative

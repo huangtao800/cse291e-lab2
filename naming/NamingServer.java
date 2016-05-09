@@ -129,9 +129,16 @@ public class NamingServer implements Service, Registration
     }
 
     @Override
-    public String[] list(Path directory) throws FileNotFoundException
-    {
-        throw new UnsupportedOperationException("not implemented");
+    public String[] list(Path directory) throws FileNotFoundException, RMIException {
+        // This method only lists direct children
+        if(!this.isDirectory(directory))    throw new FileNotFoundException("Not a directory");
+
+        ArrayList<String> ret = new ArrayList<>();
+        for(Path p : this.storageTable.keySet()){
+            if(p.equals(directory)) continue;
+            if(p.isSubpath(directory))  ret.add(p.toString());
+        }
+        return ret.toArray(new String[0]);
     }
 
     @Override
