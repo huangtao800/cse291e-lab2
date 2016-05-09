@@ -110,7 +110,10 @@ public class StorageServer implements Storage, Command
 
             clientSkeleton.start();
             commandSkeleton.start();
-            naming_server.register(clientStub, commandStub, paths.toArray(new Path[0]));
+            Path[] toDelete = naming_server.register(clientStub, commandStub, paths.toArray(new Path[0]));
+            for(Path p : toDelete){
+                this.delete(p);
+            }
         }catch (Exception e){
             e.printStackTrace();
             throw new RMIException("Storage cannot be registered");
@@ -227,6 +230,7 @@ public class StorageServer implements Storage, Command
     }
 
     private boolean deleteFile(File f){
+        if(!f.exists()) return true;
         if(f.isDirectory()){
             File[] fs = f.listFiles();
             for(File file : fs){
