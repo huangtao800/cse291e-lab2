@@ -164,10 +164,11 @@ public class StorageServer implements Storage, Command
         if(length < 0)  throw new IndexOutOfBoundsException("Length is negative");
 
         File f = file.toFile(this.root);
-        RandomAccessFile rf = new RandomAccessFile(f, "r");
+        RandomAccessFile rf = new RandomAccessFile(f, "r"); // may throw FileNotFoundException
         rf.seek(offset);
         byte[] b = new byte[length];
         int r = rf.read(b);
+        rf.close();
         if(r < length) throw new IndexOutOfBoundsException("Length exceed file boundary");
         return b;
     }
@@ -176,13 +177,21 @@ public class StorageServer implements Storage, Command
     public synchronized void write(Path file, long offset, byte[] data)
         throws FileNotFoundException, IOException
     {
-        throw new UnsupportedOperationException("not implemented");
+        if(offset < 0)  throw new IndexOutOfBoundsException("Offset negative");
+        File f = file.toFile(this.root);
+        if(!f.exists() || f.isDirectory())  throw new FileNotFoundException("File not found or is a directory");
+        RandomAccessFile rf = new RandomAccessFile(f, "w");
+        rf.seek(offset);
+
+        rf.write(data); // may throw IOException
+        rf.close();
     }
 
     // The following methods are documented in Command.java.
     @Override
     public synchronized boolean create(Path file)
     {
+
         throw new UnsupportedOperationException("not implemented");
     }
 
