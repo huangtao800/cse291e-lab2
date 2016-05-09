@@ -35,8 +35,10 @@ public class NamingServer implements Service, Registration
 {
     private Skeleton<Service> serviceSkeleton;
     private Skeleton<Registration> registrationSkeleton;
-    Hashtable<Path, Storage> storageTable;
-    Hashtable<Path, Command> commandTable;
+    private Hashtable<Path, Storage> storageTable;
+    private Hashtable<Path, Command> commandTable;
+    private Set<Storage> storages;
+    private Set<Command> commands;
     /** Creates the naming server object.
 
         <p>
@@ -46,6 +48,8 @@ public class NamingServer implements Service, Registration
     {
         this.storageTable = new Hashtable<>();
         this.commandTable = new Hashtable<>();
+        this.storages = Collections.synchronizedSet(new HashSet<Storage>());
+        this.commands = Collections.synchronizedSet(new HashSet<Command>());
 //        throw new UnsupportedOperationException("not implemented");
     }
 
@@ -145,13 +149,27 @@ public class NamingServer implements Service, Registration
     public boolean createFile(Path file)
         throws RMIException, FileNotFoundException
     {
-        throw new UnsupportedOperationException("not implemented");
+        Path parent = file.parent();
+        if(!this.storageTable.containsKey(parent)) throw new FileNotFoundException("Parent not exist");
+        if(this.storages.size() == 0)   throw new IllegalStateException("No connected storage servers");
+        Command command = this.commandTable.get(parent);
+        return command.create(file);
     }
 
     @Override
     public boolean createDirectory(Path directory) throws FileNotFoundException
     {
-        throw new UnsupportedOperationException("not implemented");
+        // This method is not finished!!!!!!!!!!! -- Tao
+        Path parent = directory.parent();
+        if(!this.storageTable.containsKey(parent))  throw new FileNotFoundException("Parent not exist");
+        if(this.storageTable.containsKey(directory))    return false;   // Existing name
+        Storage storage = this.storageTable.get(parent);
+        Command command = this.commandTable.get(parent);
+
+        // Only create the directory in the directory tree, but does not create actual folder in storage server
+        this.storageTable.put(directory, storage);
+        this.commandTable.put(directory, command);
+        return true;
     }
 
     @Override
@@ -180,6 +198,8 @@ public class NamingServer implements Service, Registration
                 commandTable.put(f, command_stub);
             }
         }
+        this.storages.add(client_stub);
+        this.commands.add(command_stub);
         Path[] ret = toDelete.toArray(new Path[0]);
         return ret;
     }

@@ -196,15 +196,12 @@ public class StorageServer implements Storage, Command
     {
         Path parent = file.parent();
         File parentFile = parent.toFile(this.root);
-        if(parentFile.exists()){
-            // Create new file
-            return createFile(file);
-        }else{
-            boolean createParent = create(parent);  // Recursively create parent
+        if(!parentFile.exists()){
+            boolean createParent = parentFile.mkdirs();  // Recursively create parent
             if(!createParent)   return false;   // Cannot create parent file
-            // Create new file
-            return createFile(file);
         }
+        // Create new file
+        return createFile(file);
     }
 
     private boolean createFile(Path file){
