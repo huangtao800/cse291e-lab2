@@ -164,6 +164,16 @@ public class NamingServer implements Service, Registration
     public Path[] register(Storage client_stub, Command command_stub,
                            Path[] files)
     {
-        throw new UnsupportedOperationException("not implemented");
+        ArrayList<Path> toDelete = new ArrayList<>();
+        for(Path f : files){
+            if(storageTable.containsKey(f) || commandTable.containsKey(f)){
+                toDelete.add(f);
+            }else{
+                storageTable.put(f, client_stub);
+                commandTable.put(f, command_stub);
+            }
+        }
+        Path[] ret = toDelete.toArray(new Path[0]);
+        return ret;
     }
 }

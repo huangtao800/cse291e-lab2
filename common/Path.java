@@ -280,7 +280,10 @@ public class Path implements Iterable<String>, Comparable<Path>, Serializable
     }
 
     public static void main(String[] args){
-        File f = new File("/ajd/dj");
-        System.out.println(f.exists());
+        Path p1 = new Path("/a/b/c");
+        Path p2 = new Path("/a/b/c");
+        HashSet<Path> s = new HashSet<>();
+        s.add(p1);
+        System.out.println(s.contains(p2));
     }
 }
