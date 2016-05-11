@@ -185,12 +185,24 @@ public class NamingServer implements Service, Registration
 
         boolean b = command.delete(path);
         if(!b)  return b;
-        this.commandTable.remove(path);
-        this.storageTable.remove(path);
+        if(this.isDirectory(path)){ // If path is directory, all children are also deleted from the tree.
+            Iterator<Map.Entry<Path, Command>> iterator = this.commandTable.entrySet().iterator();
+            while(iterator.hasNext()){
+                Map.Entry<Path, Command> entry = iterator.next();
+                Path key = entry.getKey();
+                if(key.isSubpath(path)){
+                    this.storageTable.remove(key);
+                    iterator.remove();
+                }
+            }
+        }else{
+            this.commandTable.remove(path);
+            this.storageTable.remove(path);
+        }
 
-        Path parent = path.parent();
+        Path parent = path.parent();    // check if parent folder becomes empty
         String[] children = this.list(parent);
-        if(children.length == 1 && !parent.isRoot()){
+        if(children.length == 0 && !parent.isRoot()){
             return b && this.delete(parent);
         }
         return b;
