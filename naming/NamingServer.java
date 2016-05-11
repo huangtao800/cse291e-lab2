@@ -150,10 +150,15 @@ public class NamingServer implements Service, Registration
         throws RMIException, FileNotFoundException
     {
         Path parent = file.parent();
-        if(!this.storageTable.containsKey(parent)) throw new FileNotFoundException("Parent not exist");
+        Storage storage = this.storageTable.get(parent);
+        if(storage == null) throw new FileNotFoundException("Parent not exist");
         if(this.storages.size() == 0)   throw new IllegalStateException("No connected storage servers");
         Command command = this.commandTable.get(parent);
-        return command.create(file);
+        boolean b = command.create(file);
+        if(!b)  return b;
+        this.storageTable.put(file, storage);
+        this.commandTable.put(file, command);
+        return b;
     }
 
     @Override
