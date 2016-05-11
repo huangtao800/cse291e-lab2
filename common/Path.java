@@ -173,7 +173,7 @@ public class Path implements Iterable<String>, Comparable<Path>, Serializable
     }
 
     /**
-     *
+     * This is method is added by Tao
      * @param other
      * @return true if this path is a direct child of other
      */

@@ -140,7 +140,7 @@ public class NamingServer implements Service, Registration
         ArrayList<String> ret = new ArrayList<>();
         for(Path p : this.storageTable.keySet()){
             if(p.equals(directory)) continue;
-            if(p.isSubpath(directory))  ret.add(p.toString());
+            if(p.isDirectChild(directory))  ret.add(p.toString());
         }
         return ret.toArray(new String[0]);
     }
