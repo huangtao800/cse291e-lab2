@@ -224,11 +224,13 @@ public class StorageServer implements Storage, Command
         if(path.isRoot()) return false;   // Cannot delete root directory
         File f = path.toFile(this.root);
         boolean t1 = deleteFile(f);
-        Path parent = path.parent();
-        File parentFile = parent.toFile(this.root);
-        if(!parent.isRoot() && parentFile.listFiles().length == 0){
-            return delete(parent);
-        }
+
+        // Checking if parent becomes empty should be done in NamingServer.
+//        Path parent = path.parent();
+//        File parentFile = parent.toFile(this.root);
+//        if(!parent.isRoot() && parentFile.listFiles().length == 0){
+//            return delete(parent);
+//        }
         return t1;
     }
 
