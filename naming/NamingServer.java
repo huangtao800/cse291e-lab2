@@ -173,15 +173,32 @@ public class NamingServer implements Service, Registration
     }
 
     @Override
-    public boolean delete(Path path) throws FileNotFoundException
-    {
-        throw new UnsupportedOperationException("not implemented");
+    public boolean delete(Path path) throws FileNotFoundException, RMIException {
+        if(path.isRoot())   return false;
+        Command command = commandTable.get(path);
+        if(command == null) throw new FileNotFoundException("Path not found");
+
+        boolean b = command.delete(path);
+        if(!b)  return b;
+        this.commandTable.remove(path);
+        this.storageTable.remove(path);
+
+        Path parent = path.parent();
+        String[] children = this.list(parent);
+        if(children.length == 1 && !parent.isRoot()){
+            return b && this.delete(parent);
+        }
+        return b;
+//        throw new UnsupportedOperationException("not implemented");
     }
 
     @Override
     public Storage getStorage(Path file) throws FileNotFoundException
     {
-        throw new UnsupportedOperationException("not implemented");
+        Storage storage = this.storageTable.get(file);
+        if(storage == null) throw new FileNotFoundException("Path not found");
+        return storage;
+//        throw new UnsupportedOperationException("not implemented");
     }
 
     // The method register is documented in Registration.java.
