@@ -87,8 +87,13 @@ public class NamingServer implements Service, Registration
     public void stop()
     {
 //        throw new UnsupportedOperationException("not implemented");
-        this.serviceSkeleton.stop();
-        this.registrationSkeleton.stop();
+        try{
+            this.serviceSkeleton.stop();
+            this.registrationSkeleton.stop();
+            this.stopped(null);
+        }catch (Exception e){
+            this.stopped(e);
+        }
     }
 
     /** Indicates that the server has completely shut down.
@@ -201,7 +206,7 @@ public class NamingServer implements Service, Registration
             this.commandTable.remove(path);
             this.storageTable.remove(path);
         }
-        
+
         return b;
     }
 
