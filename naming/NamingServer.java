@@ -224,6 +224,8 @@ public class NamingServer implements Service, Registration
     public Path[] register(Storage client_stub, Command command_stub,
                            Path[] files)
     {
+        if(client_stub==null || command_stub==null || files==null) throw new NullPointerException();
+
         ArrayList<Path> toDelete = new ArrayList<>();
         for(Path f : files){
             if(storageTable.containsKey(f) || commandTable.containsKey(f)){

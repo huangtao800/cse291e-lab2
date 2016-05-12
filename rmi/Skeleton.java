@@ -34,6 +34,7 @@ public class Skeleton<T>
     protected Thread listenThread = null;
     private Listening<T> runnable = null;
     private ServerSocket serverSocket;
+    private static int DefaultPort = 7000;
 
     /** Creates a <code>Skeleton</code> with no initial server address. The
         address will be determined by the system when <code>start</code> is
@@ -183,7 +184,7 @@ public class Skeleton<T>
         try {
             if(iAddress == null){
 //                InetAddress host = InetAddress.getLocalHost();
-                iAddress = new InetSocketAddress(7000);
+                iAddress = new InetSocketAddress(DefaultPort++);
             }
             serverSocket = new ServerSocket(iAddress.getPort(), 50, iAddress.getAddress());
 
