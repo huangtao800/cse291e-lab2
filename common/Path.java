@@ -135,8 +135,9 @@ public class Path implements Iterable<String>, Comparable<Path>, Serializable
      */
     public Path parent()
     {
-        if(this.components.size()==0)
+        if(this.isRoot())
             throw new IllegalArgumentException("Root has no parent");
+        if(this.components.size()==1)   return new Path();
         String parentPath = "";
         for(int i=0;i<this.components.size()-1;i++){
             parentPath += "/";

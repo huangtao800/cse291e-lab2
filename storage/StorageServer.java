@@ -105,7 +105,6 @@ public class StorageServer implements Storage, Command
         try {
             ArrayList<Path> paths = new ArrayList<>();
             Path rootPath = new Path();
-            paths.add(rootPath);
             recursiveList(this.root, rootPath, paths);
 
             clientSkeleton.start();
@@ -123,9 +122,10 @@ public class StorageServer implements Storage, Command
     private void recursiveList(File file, Path parent, ArrayList<Path> paths){
         File[] files = file.listFiles();
         for(File f : files){
-            Path p = new Path(parent, f.getName());
-            paths.add(p);
-            if(f.isDirectory()){
+            if(!f.isDirectory()){
+                paths.add(new Path(parent, f.getName()));
+            }else{
+                Path p = new Path(parent, f.getName());
                 recursiveList(f, p, paths);
             }
         }
@@ -225,12 +225,11 @@ public class StorageServer implements Storage, Command
         File f = path.toFile(this.root);
         boolean t1 = deleteFile(f);
 
-        // Checking if parent becomes empty should be done in NamingServer.
-//        Path parent = path.parent();
-//        File parentFile = parent.toFile(this.root);
-//        if(!parent.isRoot() && parentFile.listFiles().length == 0){
-//            return delete(parent);
-//        }
+        Path parent = path.parent();
+        File parentFile = parent.toFile(this.root);
+        if(!parent.isRoot() && parentFile.listFiles().length == 0){
+            return delete(parent);
+        }
         return t1;
     }
 

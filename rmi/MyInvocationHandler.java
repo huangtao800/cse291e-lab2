@@ -173,7 +173,7 @@ public class MyInvocationHandler<T> extends Stub implements InvocationHandler {
         }
         if(ret instanceof Object[]){
             Object[] arr = (Object[]) ret;
-            if(arr[0] instanceof String){
+            if(arr.length == 2 && arr[0] instanceof String){
                 String str = (String) arr[0];
                 if(str.equals("Throw error")){
                     Object excep = arr[1];
