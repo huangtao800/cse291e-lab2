@@ -149,6 +149,7 @@ public class NamingServer implements Service, Registration
     public boolean createFile(Path file)
         throws RMIException, FileNotFoundException
     {
+        if(this.storageTable.containsKey(file)) return false;   // Existing file name
         Path parent = file.parent();
         Storage storage = this.storageTable.get(parent);
         if(storage == null) throw new FileNotFoundException("Parent not exist");
@@ -165,6 +166,7 @@ public class NamingServer implements Service, Registration
     public boolean createDirectory(Path directory) throws FileNotFoundException
     {
         // This method is not finished!!!!!!!!!!! -- Tao
+        if(directory.isRoot())  return false;
         Path parent = directory.parent();
         if(!this.storageTable.containsKey(parent))  throw new FileNotFoundException("Parent not exist");
         if(this.storageTable.containsKey(directory))    return false;   // Existing name
@@ -199,14 +201,8 @@ public class NamingServer implements Service, Registration
             this.commandTable.remove(path);
             this.storageTable.remove(path);
         }
-
-        Path parent = path.parent();    // check if parent folder becomes empty
-        String[] children = this.list(parent);
-        if(children.length == 0 && !parent.isRoot()){
-            return b && this.delete(parent);
-        }
+        
         return b;
-//        throw new UnsupportedOperationException("not implemented");
     }
 
     @Override

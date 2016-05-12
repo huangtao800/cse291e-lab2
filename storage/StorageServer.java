@@ -195,6 +195,7 @@ public class StorageServer implements Storage, Command
     @Override
     public synchronized boolean create(Path file)
     {
+        if(file.isRoot())   return false;
         Path parent = file.parent();
         File parentFile = parent.toFile(this.root);
         if(!parentFile.exists()){
@@ -211,8 +212,8 @@ public class StorageServer implements Storage, Command
         String absPath = rootPath + filePath;
         try{
             File newFile = new File(absPath);
-            newFile.createNewFile();
-            return true;
+            if(newFile.exists())    return false;
+            return newFile.createNewFile();
         } catch (IOException e) {
             e.printStackTrace();
         }
@@ -235,7 +236,7 @@ public class StorageServer implements Storage, Command
     }
 
     private boolean deleteFile(File f){
-        if(!f.exists()) return true;
+        if(!f.exists()) return false;
         if(f.isDirectory()){
             File[] fs = f.listFiles();
             for(File file : fs){
