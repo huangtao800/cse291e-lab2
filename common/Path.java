@@ -61,7 +61,7 @@ public class Path implements Iterable<String>, Comparable<Path>, Serializable
     public Path(String path)
     {
         this.components = new ArrayList<>();
-        if(path.equals("")) return;
+
         if(!path.startsWith("/") || path.contains(":"))
             throw new IllegalArgumentException("Illegal path");
         String[] splits = path.split("/");
@@ -102,12 +102,20 @@ public class Path implements Iterable<String>, Comparable<Path>, Serializable
             throw new FileNotFoundException("Directory not found");
         if(!directory.isDirectory())
             throw new IllegalArgumentException("File not directory");
-        String[] names = directory.list();
-        Path[] result = new Path[names.length];
-        for(int i=0;i<names.length;i++){
-            result[i] = new Path(names[i]);
+        ArrayList<Path> ret = new ArrayList<>();
+        listFiles(directory, new Path(), ret);
+        return ret.toArray(new Path[0]);
+    }
+
+    private static void listFiles(File parentFile, Path parent, ArrayList<Path> list){
+        if(!parentFile.isDirectory())   return;
+        for(File f : parentFile.listFiles()){
+            if(!f.isDirectory()){
+                list.add(new Path(parent, f.getName()));
+            }else{
+                listFiles(f, new Path(parent, f.getName()), list);
+            }
         }
-        return result;
     }
 
     /** Determines whether the path represents the root directory.
