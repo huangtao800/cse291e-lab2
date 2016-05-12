@@ -164,7 +164,8 @@ public class StorageServer implements Storage, Command
     public synchronized byte[] read(Path file, long offset, int length)
         throws FileNotFoundException, IOException
     {
-        if(length < 0)  throw new IndexOutOfBoundsException("Length is negative");
+        if(length < 0 || offset < 0 || length+offset > this.size(file))
+            throw new IndexOutOfBoundsException("Length is negative");
 
         File f = file.toFile(this.root);
         RandomAccessFile rf = new RandomAccessFile(f, "r"); // may throw FileNotFoundException
@@ -183,7 +184,7 @@ public class StorageServer implements Storage, Command
         if(offset < 0)  throw new IndexOutOfBoundsException("Offset negative");
         File f = file.toFile(this.root);
         if(!f.exists() || f.isDirectory())  throw new FileNotFoundException("File not found or is a directory");
-        RandomAccessFile rf = new RandomAccessFile(f, "w");
+        RandomAccessFile rf = new RandomAccessFile(f, "rw");
         rf.seek(offset);
 
         rf.write(data); // may throw IOException
