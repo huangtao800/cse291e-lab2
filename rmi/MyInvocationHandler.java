@@ -137,11 +137,7 @@ public class MyInvocationHandler<T> extends Stub implements InvocationHandler {
         // Global variables needs synchronization.
         Socket socket;
         synchronized (this) {
-            if (!this.hostname.equals("") && this.port!=-1) {
-                socket = new Socket(this.hostname, this.port);
-            } else {
-                socket = new Socket(hostname, port);
-            }
+            socket = new Socket(this.hostname, this.port);
         }
 
         Object ret = null;
@@ -165,6 +161,7 @@ public class MyInvocationHandler<T> extends Stub implements InvocationHandler {
             ois = new ObjectInputStream(socket.getInputStream());
             ret = ois.readObject();
         }catch (Exception e){
+//            e.printStackTrace();
             throw new RMIException("Remote call fails");
         }
 
