@@ -35,11 +35,11 @@ public class NamingServer implements Service, Registration
 {
     private Skeleton<Service> serviceSkeleton;
     private Skeleton<Registration> registrationSkeleton;
-    private Hashtable<Path, Storage> storageTable;
-    private Hashtable<Path, Command> commandTable;
-    private Set<Storage> storages;
-    private Set<Command> commands;
-    private Set<Path> createdDirs;
+    private HashMap<Path, Storage> storageTable;
+    private HashMap<Path, Command> commandTable;
+    private Set<Storage> storages;  // Stores connected Storage stubs.
+    private Set<Command> commands;  // Stores connected Command stubs.
+    private Set<Path> createdDirs;  // Stores all created directories to distinguish them from files.
     /** Creates the naming server object.
 
         <p>
@@ -47,11 +47,11 @@ public class NamingServer implements Service, Registration
      */
     public NamingServer()
     {
-        this.storageTable = new Hashtable<>();
-        this.commandTable = new Hashtable<>();
-        this.storages = Collections.synchronizedSet(new HashSet<Storage>());
-        this.commands = Collections.synchronizedSet(new HashSet<Command>());
-        this.createdDirs = Collections.synchronizedSet(new HashSet<Path>());
+        this.storageTable = new HashMap<>();
+        this.commandTable = new HashMap<>();
+        this.storages = new HashSet<Storage>();
+        this.commands = new HashSet<Command>();
+        this.createdDirs = new HashSet<Path>();
 //        throw new UnsupportedOperationException("not implemented");
     }
 
@@ -231,6 +231,7 @@ public class NamingServer implements Service, Registration
     @Override
     public Storage getStorage(Path file) throws FileNotFoundException
     {
+        if(file==null)  throw new NullPointerException();
         Storage storage = this.storageTable.get(file);
         if(storage==null)   throw new FileNotFoundException("Path not found");
         return storage;
