@@ -39,6 +39,7 @@ public class NamingServer implements Service, Registration
     private Hashtable<Path, Command> commandTable;
     private Set<Storage> storages;
     private Set<Command> commands;
+    private Set<Path> createdDirs;
     /** Creates the naming server object.
 
         <p>
@@ -50,6 +51,7 @@ public class NamingServer implements Service, Registration
         this.commandTable = new Hashtable<>();
         this.storages = Collections.synchronizedSet(new HashSet<Storage>());
         this.commands = Collections.synchronizedSet(new HashSet<Command>());
+        this.createdDirs = Collections.synchronizedSet(new HashSet<Path>());
 //        throw new UnsupportedOperationException("not implemented");
     }
 
@@ -124,17 +126,15 @@ public class NamingServer implements Service, Registration
 
     @Override
     public boolean isDirectory(Path path) throws FileNotFoundException, RMIException {
-        Storage storage = storageTable.get(path);
-        if(storage == null) throw new FileNotFoundException("File not found");
-        try {
-            storage.size(path);
-            return false;
-        } catch(FileNotFoundException e){
-            return false;
-        }catch (RMIException e) {
-            e.printStackTrace();
-            throw e;
+        if(path == null)    throw new NullPointerException("Input null");
+        if(path.isRoot())   return true;
+        if(!contains(path)) throw new FileNotFoundException("File not found");
+        if(this.createdDirs.contains(path)) return true;
+        for(Path p : this.storageTable.keySet()){
+            if(p.equals(path))  return false;
+            if(p.isSubpath(path) && !p.equals(path))   return true;
         }
+        return false;
     }
 
     @Override
@@ -142,24 +142,27 @@ public class NamingServer implements Service, Registration
         // This method only lists direct children
         if(!this.isDirectory(directory))    throw new FileNotFoundException("Not a directory");
 
-        ArrayList<String> ret = new ArrayList<>();
+        HashSet<String> ret = new HashSet<>();
         for(Path p : this.storageTable.keySet()){
-            if(p.equals(directory)) continue;
-            if(p.isDirectChild(directory))  ret.add(p.toString());
+            if(p.isSubpath(directory) && !p.equals(directory)){
+                ret.add(p.getDirectChild(directory));
+            }
         }
         return ret.toArray(new String[0]);
     }
+
 
     @Override
     public boolean createFile(Path file)
         throws RMIException, FileNotFoundException
     {
-        if(this.storageTable.containsKey(file)) return false;   // Existing file name
+        if(this.contains(file)) return false;   // Existing file name
         Path parent = file.parent();
-        Storage storage = this.storageTable.get(parent);
+        if(!this.isDirectory(parent))   throw new FileNotFoundException("Parent is a file");
+        Storage storage = this.getDirStorage(parent);
         if(storage == null) throw new FileNotFoundException("Parent not exist");
         if(this.storages.size() == 0)   throw new IllegalStateException("No connected storage servers");
-        Command command = this.commandTable.get(parent);
+        Command command = this.getDirCommand(parent);
         boolean b = command.create(file);
         if(!b)  return b;
         this.storageTable.put(file, storage);
@@ -168,19 +171,18 @@ public class NamingServer implements Service, Registration
     }
 
     @Override
-    public boolean createDirectory(Path directory) throws FileNotFoundException
-    {
-        // This method is not finished!!!!!!!!!!! -- Tao
+    public boolean createDirectory(Path directory) throws FileNotFoundException, RMIException {
         if(directory.isRoot())  return false;
         Path parent = directory.parent();
-        if(!this.storageTable.containsKey(parent))  throw new FileNotFoundException("Parent not exist");
-        if(this.storageTable.containsKey(directory))    return false;   // Existing name
-        Storage storage = this.storageTable.get(parent);
-        Command command = this.commandTable.get(parent);
+        if(!this.isDirectory(parent))   throw new FileNotFoundException("Parent is a file");
+        if(this.contains(directory))    return false;   // Existing name
+        Storage storage = this.getDirStorage(parent);
+        Command command = this.getDirCommand(parent);
 
         // Only create the directory in the directory tree, but does not create actual folder in storage server
         this.storageTable.put(directory, storage);
         this.commandTable.put(directory, command);
+        this.createdDirs.add(directory);
         return true;
     }
 
@@ -200,26 +202,42 @@ public class NamingServer implements Service, Registration
                 if(key.isSubpath(path)){
                     this.storageTable.remove(key);
                     iterator.remove();
+                    if(this.createdDirs.contains(key))  this.createdDirs.remove(key);
                 }
             }
-        }else{
-            this.commandTable.remove(path);
-            this.storageTable.remove(path);
         }
+        this.commandTable.remove(path);
+        this.storageTable.remove(path);
+        if(this.createdDirs.contains(path)) this.createdDirs.remove(path);
 
         return b;
+    }
+
+
+    private Command getDirCommand(Path file) throws FileNotFoundException{
+        for(Path p : this.commandTable.keySet()){
+            if(p.isSubpath(file))   return this.commandTable.get(p);
+        }
+        throw new FileNotFoundException("Path not found");
+    }
+
+    private Storage getDirStorage(Path dir) throws FileNotFoundException{
+        for(Path p : storageTable.keySet()){
+            if(p.isSubpath(dir))    return storageTable.get(p);
+        }
+        throw new FileNotFoundException("Path not found");
     }
 
     @Override
     public Storage getStorage(Path file) throws FileNotFoundException
     {
         Storage storage = this.storageTable.get(file);
-        if(storage == null) throw new FileNotFoundException("Path not found");
+        if(storage==null)   throw new FileNotFoundException("Path not found");
         return storage;
-//        throw new UnsupportedOperationException("not implemented");
     }
 
 
+    // check if path exists
     private boolean contains(Path path){
         for(Path p: this.storageTable.keySet()){
             if(p.isSubpath(path))   return true;
@@ -240,8 +258,7 @@ public class NamingServer implements Service, Registration
 
         ArrayList<Path> toDelete = new ArrayList<>();
         for(Path f : files){
-            if(f.isRoot())  continue;
-            if(this.contains(f)){
+            if(this.contains(f) && !f.isRoot()){
                 toDelete.add(f);
             }else{
                 storageTable.put(f, client_stub);
@@ -252,5 +269,14 @@ public class NamingServer implements Service, Registration
         this.commands.add(command_stub);
         Path[] ret = toDelete.toArray(new Path[0]);
         return ret;
+    }
+
+    private class PathWithDir{
+        Path p;
+        boolean isDir;
+        private PathWithDir(Path p, boolean isDir){
+            this.p = p;
+            this.isDir = isDir;
+        }
     }
 }

@@ -183,12 +183,14 @@ public class Path implements Iterable<String>, Comparable<Path>, Serializable
 
     /**
      * This is method is added by Tao
-     * @param other
+     * @param parent
      * @return true if this path is a direct child of other
      */
-    public boolean isDirectChild(Path other){
-        return this.components.size() == other.components.size() + 1
-                && this.isSubpath(other);
+    public String getDirectChild(Path parent){
+        if(this.equals(parent) || !this.isSubpath(parent))
+            throw new IllegalArgumentException("No direct child");
+        int parentSize = parent.components.size();
+        return this.components.get(parentSize);
     }
 
     /** Converts the path to <code>File</code> object.
