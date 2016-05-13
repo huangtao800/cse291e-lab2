@@ -11,10 +11,10 @@ import java.net.Socket;
  * Created by tao on 4/15/16.
  */
 public class MyInvocationHandler<T> extends Stub implements InvocationHandler {
-    private Socket socket;
-    private Skeleton<T> skeleton = null;
-    private String hostname;
-    private int port;
+//    private Socket socket;
+//    private Skeleton<T> skeleton = null;
+    private String hostname="";
+    private int port = -1;
     private Class<T> c;
 
     public MyInvocationHandler(InetSocketAddress address, Class<T> c) throws IOException {
@@ -25,7 +25,7 @@ public class MyInvocationHandler<T> extends Stub implements InvocationHandler {
 
     public MyInvocationHandler(Skeleton skeleton, Class<T> c) throws IOException {
 //        this.socket = new Socket(skeleton.iAddress.getAddress(), skeleton.iAddress.getPort());
-        this.skeleton = skeleton;
+//        this.skeleton = skeleton;
         this.c = c;
         this.hostname = skeleton.iAddress.getHostName();
         this.port = skeleton.iAddress.getPort();
@@ -86,11 +86,11 @@ public class MyInvocationHandler<T> extends Stub implements InvocationHandler {
             }
             MyInvocationHandler objHandler = (MyInvocationHandler) Proxy.getInvocationHandler(obj);
 
-            if(proxyHandler.skeleton != null) {
-                System.out.println("skeleton is not null");
-                return proxy.getClass().equals(obj.getClass())
-                        && equals(objHandler);
-            }
+//            if(proxyHandler.skeleton != null) {
+//                System.out.println("skeleton is not null");
+//                return proxy.getClass().equals(obj.getClass())
+//                        && equals(objHandler);
+//            }
 //            System.out.println("skeleton is null");
             return proxyHandler.equals(objHandler);
             //return proxyHandler.hashCode() == objHandler.hashCode();
@@ -121,7 +121,7 @@ public class MyInvocationHandler<T> extends Stub implements InvocationHandler {
                     new ObjectOutputStream(new ByteArrayOutputStream()).writeObject(t);
                     request[pos++] = t;
                 } catch (IOException e) {
-//                    e.printStackTrace();
+                    e.printStackTrace();
                     request[pos++] = null;
                 }
 
@@ -135,11 +135,12 @@ public class MyInvocationHandler<T> extends Stub implements InvocationHandler {
 
     public Object invokeRemoteMethod(Object proxy, Method method, Object[] args) throws Throwable {
         // Global variables needs synchronization.
+        Socket socket;
         synchronized (this) {
-            if (this.skeleton != null) {
-                this.socket = new Socket(skeleton.iAddress.getAddress(), skeleton.iAddress.getPort());
+            if (!this.hostname.equals("") && this.port!=-1) {
+                socket = new Socket(this.hostname, this.port);
             } else {
-                this.socket = new Socket(hostname, port);
+                socket = new Socket(hostname, port);
             }
         }
 
@@ -184,7 +185,7 @@ public class MyInvocationHandler<T> extends Stub implements InvocationHandler {
 
         if(oos!=null)   oos.close();
         if(ois!=null)   ois.close();
-        this.socket.close();
+        socket.close();
         return ret;
     }
 
@@ -232,11 +233,11 @@ public class MyInvocationHandler<T> extends Stub implements InvocationHandler {
         if(!(((MyInvocationHandler) obj).c.equals(this.c))) {
             return false;
         }
-        if(this.skeleton != null && ((MyInvocationHandler) obj).skeleton != null) {
-            if(!(this.skeleton.getClass().equals(((MyInvocationHandler) obj).skeleton.getClass()))) {
-                return false;
-            }
-        }
+//        if(this.skeleton != null && ((MyInvocationHandler) obj).skeleton != null) {
+//            if(!(this.skeleton.getClass().equals(((MyInvocationHandler) obj).skeleton.getClass()))) {
+//                return false;
+//            }
+//        }
         return obj.hashCode() == this.hashCode();
     }
 }
