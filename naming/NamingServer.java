@@ -219,6 +219,14 @@ public class NamingServer implements Service, Registration
 //        throw new UnsupportedOperationException("not implemented");
     }
 
+
+    private boolean contains(Path path){
+        for(Path p: this.storageTable.keySet()){
+            if(p.isSubpath(path))   return true;
+        }
+        return false;
+    }
+
     // The method register is documented in Registration.java.
     @Override
     public Path[] register(Storage client_stub, Command command_stub,
@@ -226,9 +234,14 @@ public class NamingServer implements Service, Registration
     {
         if(client_stub==null || command_stub==null || files==null) throw new NullPointerException();
 
+
+        if(this.storages.contains(client_stub) || this.commands.contains(command_stub))
+            throw new IllegalStateException("Already registered");
+
         ArrayList<Path> toDelete = new ArrayList<>();
         for(Path f : files){
-            if(storageTable.containsKey(f) || commandTable.containsKey(f)){
+            if(f.isRoot())  continue;
+            if(this.contains(f)){
                 toDelete.add(f);
             }else{
                 storageTable.put(f, client_stub);

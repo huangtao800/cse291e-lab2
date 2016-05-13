@@ -140,6 +140,7 @@ public class StorageServer implements Storage, Command
     {
         clientSkeleton.stop();
         commandSkeleton.stop();
+        this.stopped(null);
     }
 
     /** Called when the storage server has shut down.
@@ -276,6 +277,7 @@ public class StorageServer implements Storage, Command
         }
         return true;
     }
+
 
     public static void main(String[] args){
         StorageServer ss = new StorageServer(new File("/Users/tao/Documents/UCSD_Study/2016_Spring/cse291E00/labs/lab2/cse291e-lab2/naming/"));
