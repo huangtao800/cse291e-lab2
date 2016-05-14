@@ -194,6 +194,10 @@ public class NamingServer implements Service, Registration
     @Override
     public void unlock(Path path, boolean exclusive)
     {
+        synchronized (this){
+            this.queue.remove(new Pair(path, exclusive));
+            notifyAll();
+        }
 //        throw new UnsupportedOperationException("not implemented");
     }
 
