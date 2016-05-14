@@ -18,8 +18,8 @@ import naming.*;
 public class StorageServer implements Storage, Command
 {
     private File root;
-    private int client_port = 8801;
-    private int command_port = 8802;
+    private static int client_port = 7001;
+    private static int command_port = 8001;
     private Skeleton<Storage> clientSkeleton = null;
     private Skeleton<Command> commandSkeleton = null;
     /** Creates a storage server, given a directory on the local filesystem, and
@@ -91,10 +91,12 @@ public class StorageServer implements Storage, Command
 
         try{
             InetSocketAddress clientAddress = new InetSocketAddress(hostname, client_port);
+            client_port++;
             clientSkeleton = new Skeleton<>(Storage.class, this, clientAddress);
             clientStub = Stub.create(Storage.class, clientAddress);
 
             InetSocketAddress commandAddress = new InetSocketAddress(hostname, command_port);
+            command_port++;
             commandSkeleton = new Skeleton<>(Command.class, this, commandAddress);
             commandStub = Stub.create(Command.class, commandAddress);
         }catch (Exception e){
