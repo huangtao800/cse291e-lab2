@@ -40,6 +40,8 @@ public class NamingServer implements Service, Registration
     private Set<Storage> storages;  // Stores connected Storage stubs.
     private Set<Command> commands;  // Stores connected Command stubs.
     private Set<Path> createdDirs;  // Stores all created directories to distinguish them from files.
+
+    private List<Pair> queue;
     /** Creates the naming server object.
 
         <p>
@@ -52,6 +54,8 @@ public class NamingServer implements Service, Registration
         this.storages = new HashSet<Storage>();
         this.commands = new HashSet<Command>();
         this.createdDirs = new HashSet<Path>();
+
+        this.queue = new ArrayList<>();
 //        throw new UnsupportedOperationException("not implemented");
     }
 
@@ -115,7 +119,76 @@ public class NamingServer implements Service, Registration
     @Override
     public void lock(Path path, boolean exclusive) throws FileNotFoundException
     {
+
+        synchronized (this){
+            this.queue.add(new Pair(path, exclusive));
+        }
+        if(!exclusive){ //  read
+            while(true){
+                int i = 0;
+                synchronized (this){
+                    while(i<this.queue.size()){
+                        Pair pair = this.queue.get(i);
+
+                        if(pair.path == null)   System.out.println("NULL!!!!!!!!!!" + queue.size());
+                        if(pair.path.equals(path) && pair.exclusive == exclusive)   break;
+                        if(pair.exclusive){
+                            boolean violate = checkViolateWithRead(pair.path, path);
+                            if(violate) try {
+                                wait();
+                            } catch (InterruptedException e) {
+                                e.printStackTrace();
+                            }
+                        }
+                        i++;
+                    }
+                    return;
+                }
+            }
+        }else{
+            while(true){
+                int i = 0;
+                synchronized (this){
+                    while(i < this.queue.size()){
+                        Pair pair = this.queue.get(i);
+                        if(pair.path.equals(path) && pair.exclusive == exclusive)    break;
+
+                        boolean violate = checkViolateWithWrite(pair.path, pair.exclusive, path);
+                        if(violate) try {
+                            wait();
+                        } catch (InterruptedException e) {
+                            e.printStackTrace();
+                        }
+
+                        i++;
+                    }
+                    return;
+                }
+            }
+        }
 //        throw new UnsupportedOperationException("not implemented");
+    }
+
+    // writePath comes before readPath
+    private boolean checkViolateWithRead(Path writePath, Path readPath){
+        if(writePath.equals(readPath))  return true;
+        if(writePath.isSubpath(readPath))   return false;    // write /a/b/c, read /a/b
+        if(readPath.isSubpath(writePath))   return true;   // write /a/b, read /a/b/c
+        return false;
+    }
+
+    // path comes before writePath
+    private boolean checkViolateWithWrite(Path path, boolean exclusive, Path writePath){
+        if(path.equals(writePath))  return true;
+        if(!exclusive){
+            if(writePath.isSubpath(path))   return false;    // read /a/b, write /a/b/c
+            if(path.isSubpath(writePath))   return true;    // read /a/b/c, write /a/b
+            return false;
+        }else{
+            if(writePath.isSubpath(path))   return true;    // write /a/b, write /a/b/c
+            if(path.isSubpath(writePath))   return true;    // write /a/b/c, write /a/b
+            return false;
+        }
     }
 
     @Override
@@ -305,6 +378,31 @@ public class NamingServer implements Service, Registration
         this.commands.add(command_stub);
         Path[] ret = toDelete.toArray(new Path[0]);
         return ret;
+    }
+
+    private class Pair{
+        Path path;
+        boolean exclusive;
+
+        private Pair(Path p, boolean b){
+            path = p;
+            exclusive = b;
+        }
+
+        @Override
+        public boolean equals(Object obj) {
+            if(obj == null) return false;
+            if(obj instanceof Pair){
+                Pair o = (Pair) obj;
+                return path.equals(o.path) && exclusive == o.exclusive;
+            }
+            return false;
+        }
+
+        @Override
+        public int hashCode() {
+            return path.hashCode();
+        }
     }
 
 }
