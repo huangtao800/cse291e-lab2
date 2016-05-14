@@ -115,17 +115,43 @@ public class NamingServer implements Service, Registration
     @Override
     public void lock(Path path, boolean exclusive) throws FileNotFoundException
     {
-        throw new UnsupportedOperationException("not implemented");
+//        throw new UnsupportedOperationException("not implemented");
     }
 
     @Override
     public void unlock(Path path, boolean exclusive)
     {
-        throw new UnsupportedOperationException("not implemented");
+//        throw new UnsupportedOperationException("not implemented");
     }
 
     @Override
     public boolean isDirectory(Path path) throws FileNotFoundException, RMIException {
+        if(path == null)    throw new NullPointerException("Input null");
+        if(path.isRoot())   return true;
+        lock(path, false);
+        if(!contains(path)){
+            unlock(path, false);
+            throw new FileNotFoundException("File not found");
+        }
+        if(this.createdDirs.contains(path)){
+            unlock(path, false);
+            return true;
+        }
+        for(Path p : this.storageTable.keySet()){
+            if(p.equals(path)){
+                unlock(path, false);
+                return false;
+            }
+            if(p.isSubpath(path) && !p.equals(path)){
+                unlock(path, false);
+                return true;
+            }
+        }
+        return false;
+    }
+
+    // This private method is only caller when the caller already has the lock.
+    private boolean isDirectoryNoLock(Path path) throws FileNotFoundException {
         if(path == null)    throw new NullPointerException("Input null");
         if(path.isRoot())   return true;
         if(!contains(path)) throw new FileNotFoundException("File not found");
@@ -141,7 +167,7 @@ public class NamingServer implements Service, Registration
     public String[] list(Path directory) throws FileNotFoundException, RMIException {
         // This method only lists direct children
         if(directory == null)    throw new NullPointerException("Input null");
-        if(!this.isDirectory(directory))    throw new FileNotFoundException("Not a directory");
+        if(!this.isDirectoryNoLock(directory))    throw new FileNotFoundException("Not a directory");
 
         HashSet<String> ret = new HashSet<>();
         for(Path p : this.storageTable.keySet()){
@@ -161,7 +187,7 @@ public class NamingServer implements Service, Registration
 
         if(this.contains(file)) return false;   // Existing file name
         Path parent = file.parent();
-        if(!this.isDirectory(parent))   throw new FileNotFoundException("Parent is a file");
+        if(!this.isDirectoryNoLock(parent))   throw new FileNotFoundException("Parent is a file");
         Storage storage = this.getDirStorage(parent);
         if(storage == null) throw new FileNotFoundException("Parent not exist");
         if(this.storages.size() == 0)   throw new IllegalStateException("No connected storage servers");
@@ -179,7 +205,7 @@ public class NamingServer implements Service, Registration
 
         if(directory.isRoot())  return false;
         Path parent = directory.parent();
-        if(!this.isDirectory(parent))   throw new FileNotFoundException("Parent is a file");
+        if(!this.isDirectoryNoLock(parent))   throw new FileNotFoundException("Parent is a file");
         if(this.contains(directory))    return false;   // Existing name
         Storage storage = this.getDirStorage(parent);
         Command command = this.getDirCommand(parent);
@@ -191,6 +217,7 @@ public class NamingServer implements Service, Registration
         return true;
     }
 
+    // This method is not tested in the checkpoint!
     @Override
     public boolean delete(Path path) throws FileNotFoundException, RMIException {
         if(path == null)    throw new NullPointerException("Input null");
@@ -201,7 +228,7 @@ public class NamingServer implements Service, Registration
 
         boolean b = command.delete(path);
         if(!b)  return b;
-        if(this.isDirectory(path)){ // If path is directory, all children are also deleted from the tree.
+        if(this.isDirectoryNoLock(path)){ // If path is directory, all children are also deleted from the tree.
             Iterator<Map.Entry<Path, Command>> iterator = this.commandTable.entrySet().iterator();
             while(iterator.hasNext()){
                 Map.Entry<Path, Command> entry = iterator.next();
@@ -217,6 +244,7 @@ public class NamingServer implements Service, Registration
         this.storageTable.remove(path);
         if(this.createdDirs.contains(path)) this.createdDirs.remove(path);
 
+        // May need to delete empty parents here!
         return b;
     }
 
