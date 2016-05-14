@@ -140,6 +140,7 @@ public class NamingServer implements Service, Registration
     @Override
     public String[] list(Path directory) throws FileNotFoundException, RMIException {
         // This method only lists direct children
+        if(directory == null)    throw new NullPointerException("Input null");
         if(!this.isDirectory(directory))    throw new FileNotFoundException("Not a directory");
 
         HashSet<String> ret = new HashSet<>();
@@ -156,6 +157,8 @@ public class NamingServer implements Service, Registration
     public boolean createFile(Path file)
         throws RMIException, FileNotFoundException
     {
+        if(file == null)    throw new NullPointerException("Input null");
+
         if(this.contains(file)) return false;   // Existing file name
         Path parent = file.parent();
         if(!this.isDirectory(parent))   throw new FileNotFoundException("Parent is a file");
@@ -172,6 +175,8 @@ public class NamingServer implements Service, Registration
 
     @Override
     public boolean createDirectory(Path directory) throws FileNotFoundException, RMIException {
+        if(directory == null)    throw new NullPointerException("Input null");
+
         if(directory.isRoot())  return false;
         Path parent = directory.parent();
         if(!this.isDirectory(parent))   throw new FileNotFoundException("Parent is a file");
@@ -188,9 +193,11 @@ public class NamingServer implements Service, Registration
 
     @Override
     public boolean delete(Path path) throws FileNotFoundException, RMIException {
+        if(path == null)    throw new NullPointerException("Input null");
+
         if(path.isRoot())   return false;
-        Command command = commandTable.get(path);
-        if(command == null) throw new FileNotFoundException("Path not found");
+        if(!this.contains(path))    throw new FileNotFoundException("Path not found");
+        Command command = this.getDirCommand(path);
 
         boolean b = command.delete(path);
         if(!b)  return b;
