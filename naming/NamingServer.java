@@ -279,12 +279,4 @@ public class NamingServer implements Service, Registration
         return ret;
     }
 
-    private class PathWithDir{
-        Path p;
-        boolean isDir;
-        private PathWithDir(Path p, boolean isDir){
-            this.p = p;
-            this.isDir = isDir;
-        }
-    }
 }
