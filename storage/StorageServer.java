@@ -262,15 +262,13 @@ public class StorageServer implements Storage, Command
         long offset = 0;
         try{
             while(remain > 1000){
-                byte[] data = new byte[1000];
-                server.read(file, offset, 1000);
+                byte[] data = server.read(file, offset, 1000);
                 this.write(file, offset, data);
                 offset += 1000;
                 remain -= 1000;
             }
             if(remain > 0){
-                byte[] data = new byte[(int)remain];
-                server.read(file, offset, (int)remain);
+                byte[] data = server.read(file, offset, (int)remain);
                 this.write(file, offset, data);
             }
         }catch (IOException e){
