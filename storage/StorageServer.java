@@ -255,6 +255,11 @@ public class StorageServer implements Storage, Command
         throws RMIException, FileNotFoundException, IOException
     {
         long size = server.size(file);
+        File f = file.toFile(this.root);
+        if(f.exists()){
+            boolean del = this.delete(file);
+            if(!del)    throw new IOException("Cannot delete replaced file");
+        }
         boolean create = create(file);
         if(!create) throw new IOException("Cannot create file");
 

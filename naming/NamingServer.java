@@ -119,8 +119,9 @@ public class NamingServer implements Service, Registration
     @Override
     public void lock(Path path, boolean exclusive) throws FileNotFoundException
     {
-
+        if(path == null)    throw new NullPointerException();
         synchronized (this){
+            if(!this.contains(path))    throw new FileNotFoundException("Lock path not found");
             this.queue.add(new Pair(path, exclusive));
         }
         if(!exclusive){ //  read
@@ -194,8 +195,10 @@ public class NamingServer implements Service, Registration
     @Override
     public void unlock(Path path, boolean exclusive)
     {
+        if(path == null)    throw new NullPointerException();
         synchronized (this){
-            this.queue.remove(new Pair(path, exclusive));
+            boolean b = this.queue.remove(new Pair(path, exclusive));
+            if(!b)  throw new IllegalArgumentException("Path not found");
             notifyAll();
         }
 //        throw new UnsupportedOperationException("not implemented");
@@ -224,6 +227,7 @@ public class NamingServer implements Service, Registration
                 return true;
             }
         }
+        unlock(path, false);
         return false;
     }
 
