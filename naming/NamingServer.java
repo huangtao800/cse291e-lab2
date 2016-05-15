@@ -120,54 +120,71 @@ public class NamingServer implements Service, Registration
     public void lock(Path path, boolean exclusive) throws FileNotFoundException
     {
         if(path == null)    throw new NullPointerException();
+
+        Pair pair = new Pair(path, exclusive);
         synchronized (this){
-            if(!this.contains(path))    throw new FileNotFoundException("Lock path not found");
-            this.queue.add(new Pair(path, exclusive));
+            this.queue.add(pair);
         }
-        if(!exclusive){ //  read
-            while(true){
+
+        while(true){
+            if(!path.isRoot() && !this.contains(path)){
+                synchronized (this){
+                    int index = 0;
+                    for(;index < this.queue.size();index++){
+                        if(queue.get(index) == pair)    break;
+                    }
+                    this.queue.remove(index);
+                }
+                throw new FileNotFoundException("Lock path not found");
+            }
+            if(!exclusive){
                 int i = 0;
                 synchronized (this){
+                    boolean violate = false;
                     while(i<this.queue.size()){
-                        Pair pair = this.queue.get(i);
+                        Pair current = this.queue.get(i);
+                        if(current == pair) break;
 
-                        if(pair.path == null)   System.out.println("NULL!!!!!!!!!!" + queue.size());
-                        if(pair.path.equals(path) && pair.exclusive == exclusive)   break;
-                        if(pair.exclusive){
-                            boolean violate = checkViolateWithRead(pair.path, path);
+                        if(current.exclusive){
+                            violate = checkViolateWithRead(current.path, path);
                             if(violate) try {
                                 wait();
+                                break;
                             } catch (InterruptedException e) {
                                 e.printStackTrace();
                             }
                         }
                         i++;
                     }
-                    return;
+                    if(!violate){
+                        return;
+                    }
                 }
-            }
-        }else{
-            while(true){
+            }else{
                 int i = 0;
                 synchronized (this){
+                    boolean violate = false;
                     while(i < this.queue.size()){
-                        Pair pair = this.queue.get(i);
-                        if(pair.path.equals(path) && pair.exclusive == exclusive)    break;
+                        Pair current = this.queue.get(i);
+                        if(current == pair) break;
 
-                        boolean violate = checkViolateWithWrite(pair.path, pair.exclusive, path);
+                        violate = checkViolateWithWrite(current.path, current.exclusive, path);
                         if(violate) try {
                             wait();
+                            break;
                         } catch (InterruptedException e) {
                             e.printStackTrace();
                         }
 
                         i++;
                     }
-                    return;
+
+                    if(!violate){
+                        return;
+                    }
                 }
             }
         }
-//        throw new UnsupportedOperationException("not implemented");
     }
 
     // writePath comes before readPath
