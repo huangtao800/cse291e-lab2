@@ -117,71 +117,65 @@ public class NamingServer implements Service, Registration
 
     // The following public methods are documented in Service.java.
     @Override
-    public void lock(Path path, boolean exclusive) throws FileNotFoundException
+    public synchronized void lock(Path path, boolean exclusive) throws FileNotFoundException
     {
         if(path == null)    throw new NullPointerException();
 
         Pair pair = new Pair(path, exclusive);
-        synchronized (this){
-            this.queue.add(pair);
-        }
+        this.queue.add(pair);
 
         while(true){
             if(!path.isRoot() && !this.contains(path)){
-                synchronized (this){
-                    int index = 0;
-                    for(;index < this.queue.size();index++){
-                        if(queue.get(index) == pair)    break;
-                    }
-                    this.queue.remove(index);
+                int index = 0;
+                for(;index < this.queue.size();index++){
+                    if(queue.get(index) == pair)    break;
                 }
+                this.queue.remove(index);
+
                 throw new FileNotFoundException("Lock path not found");
             }
             if(!exclusive){
                 int i = 0;
-                synchronized (this){
-                    boolean violate = false;
-                    while(i<this.queue.size()){
-                        Pair current = this.queue.get(i);
-                        if(current == pair) break;
+                boolean violate = false;
+                while(i<this.queue.size()){
+                    Pair current = this.queue.get(i);
+                    if(current == pair) break;
 
-                        if(current.exclusive){
-                            violate = checkViolateWithRead(current.path, path);
-                            if(violate) try {
-                                wait();
-                                break;
-                            } catch (InterruptedException e) {
-                                e.printStackTrace();
-                            }
-                        }
-                        i++;
-                    }
-                    if(!violate){
-                        return;
-                    }
-                }
-            }else{
-                int i = 0;
-                synchronized (this){
-                    boolean violate = false;
-                    while(i < this.queue.size()){
-                        Pair current = this.queue.get(i);
-                        if(current == pair) break;
-
-                        violate = checkViolateWithWrite(current.path, current.exclusive, path);
+                    if(current.exclusive){
+                        violate = checkViolateWithRead(current.path, path);
                         if(violate) try {
                             wait();
                             break;
                         } catch (InterruptedException e) {
                             e.printStackTrace();
                         }
+                    }
+                    i++;
+                }
+                if(!violate){
+                    return;
+                }
 
-                        i++;
+            }else{
+                int i = 0;
+                boolean violate = false;
+                while(i < this.queue.size()){
+                    Pair current = this.queue.get(i);
+                    if(current == pair) break;
+
+                    violate = checkViolateWithWrite(current.path, current.exclusive, path);
+                    if(violate) try {
+                        wait();
+                        break;
+                    } catch (InterruptedException e) {
+                        e.printStackTrace();
                     }
 
-                    if(!violate){
-                        return;
-                    }
+                    i++;
+                }
+
+                if(!violate){
+                    return;
                 }
             }
         }
@@ -210,14 +204,13 @@ public class NamingServer implements Service, Registration
     }
 
     @Override
-    public void unlock(Path path, boolean exclusive)
+    public synchronized void unlock(Path path, boolean exclusive)
     {
         if(path == null)    throw new NullPointerException();
-        synchronized (this){
-            boolean b = this.queue.remove(new Pair(path, exclusive));
-            if(!b)  throw new IllegalArgumentException("Path not found");
-            notifyAll();
-        }
+        boolean b = this.queue.remove(new Pair(path, exclusive));
+        if(!b)  throw new IllegalArgumentException("Path not found");
+        notifyAll();
+
 //        throw new UnsupportedOperationException("not implemented");
     }
 
