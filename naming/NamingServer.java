@@ -125,7 +125,7 @@ public class NamingServer implements Service, Registration
         this.queue.add(pair);
 
         while(true){
-            if(!path.isRoot() && !this.contains(path)){
+            if(!path.isRoot() && !this.contains(path)){ // remove from queue before throwing exception
                 int index = 0;
                 for(;index < this.queue.size();index++){
                     if(queue.get(index) == pair)    break;
@@ -139,7 +139,7 @@ public class NamingServer implements Service, Registration
                 boolean violate = false;
                 while(i<this.queue.size()){
                     Pair current = this.queue.get(i);
-                    if(current == pair) break;
+                    if(current == pair) break;  // All previous requests have no conflicts
 
                     if(current.exclusive){
                         violate = checkViolateWithRead(current.path, path);
@@ -241,7 +241,7 @@ public class NamingServer implements Service, Registration
         return false;
     }
 
-    // This private method is only caller when the caller already has the lock.
+    // This private method is only called when the caller already has the lock.
     private boolean isDirectoryNoLock(Path path) throws FileNotFoundException {
         if(path == null)    throw new NullPointerException("Input null");
         if(path.isRoot())   return true;
