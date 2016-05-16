@@ -37,8 +37,8 @@ public class NamingServer implements Service, Registration
     private Skeleton<Registration> registrationSkeleton;
     private HashMap<Path, ArrayList<Storage>> storageTable;
     private HashMap<Path, ArrayList<Command>> commandTable;
-    private Set<Storage> storages;  // Stores connected Storage stubs.
-    private Set<Command> commands;  // Stores connected Command stubs.
+    private List<Storage> storages;  // Stores connected Storage stubs.
+    private List<Command> commands;  // Stores connected Command stubs.
     private Set<Path> createdDirs;  // Stores all created directories to distinguish them from files.
     private HashMap<Path, Integer> accessCount; // Stores the accessCount for each path
 
@@ -52,8 +52,8 @@ public class NamingServer implements Service, Registration
     {
         this.storageTable = new HashMap<>();
         this.commandTable = new HashMap<>();
-        this.storages = new HashSet<Storage>();
-        this.commands = new HashSet<Command>();
+        this.storages = new ArrayList<>();
+        this.commands = new ArrayList<>();
         this.createdDirs = new HashSet<Path>();
         this.accessCount = new HashMap<>();
 
@@ -118,7 +118,28 @@ public class NamingServer implements Service, Registration
     }
 
     private void replicate(Path path){
-
+        Storage replicateStorage = null;
+        Command replicateCommand = null;
+        ArrayList<Storage> storageList = this.storageTable.get(path);
+        ArrayList<Command> commandList = this.commandTable.get(path);
+        for(int i=0;i<this.storages.size();i++){
+            if(storageList.contains(this.storages.get(i)))  continue;   // Already replicated on this server
+            replicateStorage = this.storages.get(i);
+            replicateCommand = this.commands.get(i);
+            break;
+        }
+        if(replicateStorage==null || replicateCommand==null)    return; // No other storage servers.
+        try {
+            replicateCommand.copy(path, storageList.get(0));
+            storageList.add(replicateStorage);
+            commandList.add(replicateCommand);
+        } catch (RMIException e) {
+            e.printStackTrace();
+            System.out.println("Replicate failed");
+        } catch (IOException e) {
+            e.printStackTrace();
+            System.out.println("Replicate failed");
+        }
     }
 
 
