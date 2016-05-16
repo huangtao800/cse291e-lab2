@@ -35,11 +35,12 @@ public class NamingServer implements Service, Registration
 {
     private Skeleton<Service> serviceSkeleton;
     private Skeleton<Registration> registrationSkeleton;
-    private HashMap<Path, Storage> storageTable;
-    private HashMap<Path, Command> commandTable;
+    private HashMap<Path, ArrayList<Storage>> storageTable;
+    private HashMap<Path, ArrayList<Command>> commandTable;
     private Set<Storage> storages;  // Stores connected Storage stubs.
     private Set<Command> commands;  // Stores connected Command stubs.
     private Set<Path> createdDirs;  // Stores all created directories to distinguish them from files.
+    private HashMap<Path, Integer> accessCount; // Stores the accessCount for each path
 
     private List<Pair> queue;
     /** Creates the naming server object.
@@ -54,6 +55,7 @@ public class NamingServer implements Service, Registration
         this.storages = new HashSet<Storage>();
         this.commands = new HashSet<Command>();
         this.createdDirs = new HashSet<Path>();
+        this.accessCount = new HashMap<>();
 
         this.queue = new ArrayList<>();
 //        throw new UnsupportedOperationException("not implemented");
@@ -115,6 +117,23 @@ public class NamingServer implements Service, Registration
     {
     }
 
+    private void replicate(Path path){
+
+    }
+
+
+    private void incrementAccessCount(Path path){
+        Integer count = this.accessCount.get(path);
+        if(count == null){
+            count = 1;
+            this.accessCount.put(path, 1);
+        }
+        else    this.accessCount.put(path, ++count);
+        if(count % 20 == 0){
+            replicate(path);
+        }
+    }
+
     // The following public methods are documented in Service.java.
     @Override
     public synchronized void lock(Path path, boolean exclusive) throws FileNotFoundException
@@ -153,6 +172,7 @@ public class NamingServer implements Service, Registration
                     i++;
                 }
                 if(!violate){
+                    incrementAccessCount(path);
                     return;
                 }
 
@@ -285,8 +305,10 @@ public class NamingServer implements Service, Registration
         Command command = this.getDirCommand(parent);
         boolean b = command.create(file);
         if(!b)  return b;
-        this.storageTable.put(file, storage);
-        this.commandTable.put(file, command);
+        this.addToStorageMap(file, storage);
+        this.addToCommandMap(file, command);
+//        this.storageTable.put(file, storage);
+//        this.commandTable.put(file, command);
         return b;
     }
 
@@ -302,8 +324,10 @@ public class NamingServer implements Service, Registration
         Command command = this.getDirCommand(parent);
 
         // Only create the directory in the directory tree, but does not create actual folder in storage server
-        this.storageTable.put(directory, storage);
-        this.commandTable.put(directory, command);
+        this.addToStorageMap(directory, storage);
+        this.addToCommandMap(directory, command);
+//        this.storageTable.put(directory, storage);
+//        this.commandTable.put(directory, command);
         this.createdDirs.add(directory);
         return true;
     }
@@ -320,9 +344,9 @@ public class NamingServer implements Service, Registration
         boolean b = command.delete(path);
         if(!b)  return b;
         if(this.isDirectoryNoLock(path)){ // If path is directory, all children are also deleted from the tree.
-            Iterator<Map.Entry<Path, Command>> iterator = this.commandTable.entrySet().iterator();
+            Iterator<Map.Entry<Path, ArrayList<Command>>> iterator = this.commandTable.entrySet().iterator();
             while(iterator.hasNext()){
-                Map.Entry<Path, Command> entry = iterator.next();
+                Map.Entry<Path, ArrayList<Command>> entry = iterator.next();
                 Path key = entry.getKey();
                 if(key.isSubpath(path)){
                     this.storageTable.remove(key);
@@ -342,14 +366,22 @@ public class NamingServer implements Service, Registration
 
     private Command getDirCommand(Path file) throws FileNotFoundException{
         for(Path p : this.commandTable.keySet()){
-            if(p.isSubpath(file))   return this.commandTable.get(p);
+            if(p.isSubpath(file)){
+                ArrayList<Command> commandList = this.commandTable.get(p);
+                if(commandList.size()==0)   throw new FileNotFoundException("Path not found");
+                return commandList.get(0);  // It may return any element of the list.
+            }
         }
         throw new FileNotFoundException("Path not found");
     }
 
     private Storage getDirStorage(Path dir) throws FileNotFoundException{
         for(Path p : storageTable.keySet()){
-            if(p.isSubpath(dir))    return storageTable.get(p);
+            if(p.isSubpath(dir)){
+                ArrayList<Storage> storageList = this.storageTable.get(p);
+                if(storageList.size() == 0) throw new FileNotFoundException("Path not found");
+                return storageList.get(0);  // It may return any element of the list.
+            }
         }
         throw new FileNotFoundException("Path not found");
     }
@@ -358,9 +390,9 @@ public class NamingServer implements Service, Registration
     public Storage getStorage(Path file) throws FileNotFoundException
     {
         if(file==null)  throw new NullPointerException();
-        Storage storage = this.storageTable.get(file);
-        if(storage==null)   throw new FileNotFoundException("Path not found");
-        return storage;
+        ArrayList<Storage> storageList = this.storageTable.get(file);
+        if(storageList==null || storageList.size()==0)   throw new FileNotFoundException("Path not found");
+        return storageList.get(0);  // It may return any element of the list.
     }
 
 
@@ -370,6 +402,24 @@ public class NamingServer implements Service, Registration
             if(p.isSubpath(path))   return true;
         }
         return false;
+    }
+
+    private void addToStorageMap(Path f, Storage client_stub){
+        ArrayList<Storage> storageList = this.storageTable.get(f);
+        if(storageList == null){
+            storageList = new ArrayList<>();
+            storageList.add(client_stub);
+            this.storageTable.put(f, storageList);
+        }else   storageList.add(client_stub);
+    }
+
+    private void addToCommandMap(Path f, Command command_stub){
+        ArrayList<Command> commandList = this.commandTable.get(f);
+        if(commandList == null){
+            commandList = new ArrayList<>();
+            commandList.add(command_stub);
+            this.commandTable.put(f, commandList);
+        }else   commandList.add(command_stub);
     }
 
     // The method register is documented in Registration.java.
@@ -388,8 +438,10 @@ public class NamingServer implements Service, Registration
             if(this.contains(f) && !f.isRoot()){
                 toDelete.add(f);
             }else{
-                storageTable.put(f, client_stub);
-                commandTable.put(f, command_stub);
+                this.addToStorageMap(f, client_stub);
+                this.addToCommandMap(f, command_stub);
+//                storageTable.put(f, client_stub);
+//                commandTable.put(f, command_stub);
             }
         }
         this.storages.add(client_stub);
