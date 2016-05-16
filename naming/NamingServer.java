@@ -117,6 +117,7 @@ public class NamingServer implements Service, Registration
     {
     }
 
+    // This method cannot call any methods requiring locks, otherwise deadlock may happen.
     private void replicate(Path path){
         Storage replicateStorage = null;
         Command replicateCommand = null;
@@ -155,67 +156,87 @@ public class NamingServer implements Service, Registration
         }
     }
 
+    // This method cannot call any methods requiring locks, otherwise deadlock may happen.
+    private void invalidateCopy(Path path) throws RMIException {
+        ArrayList<Storage> storageList = this.storageTable.get(path);
+        ArrayList<Command> commandList = this.commandTable.get(path);
+        for(int i=1;i<commandList.size();i++){
+            this.delete(path, commandList.get(i));  // remove other copies
+        }
+        if(storageList.size() > 1){
+            storageList.subList(1, storageList.size()).clear();
+            commandList.subList(1, commandList.size()).clear();
+        }
+    }
+
     // The following public methods are documented in Service.java.
     @Override
-    public synchronized void lock(Path path, boolean exclusive) throws FileNotFoundException
-    {
+    public void lock(Path path, boolean exclusive) throws FileNotFoundException, RMIException {
         if(path == null)    throw new NullPointerException();
 
         Pair pair = new Pair(path, exclusive);
-        this.queue.add(pair);
+        synchronized (this){
+            this.queue.add(pair);
+        }
 
         while(true){
             if(!path.isRoot() && !this.contains(path)){ // remove from queue before throwing exception
-                int index = 0;
-                for(;index < this.queue.size();index++){
-                    if(queue.get(index) == pair)    break;
+                synchronized (this){
+                    int index = 0;
+                    for(;index < this.queue.size();index++){
+                        if(queue.get(index) == pair)    break;
+                    }
+                    this.queue.remove(index);
                 }
-                this.queue.remove(index);
-
                 throw new FileNotFoundException("Lock path not found");
             }
             if(!exclusive){
                 int i = 0;
                 boolean violate = false;
-                while(i<this.queue.size()){
-                    Pair current = this.queue.get(i);
-                    if(current == pair) break;  // All previous requests have no conflicts
+                synchronized (this){
+                    while(i<this.queue.size()){
+                        Pair current = this.queue.get(i);
+                        if(current == pair) break;  // All previous requests have no conflicts
 
-                    if(current.exclusive){
-                        violate = checkViolateWithRead(current.path, path);
-                        if(violate) try {
-                            wait();
-                            break;
-                        } catch (InterruptedException e) {
-                            e.printStackTrace();
+                        if(current.exclusive){
+                            violate = checkViolateWithRead(current.path, path);
+                            if(violate) try {
+                                wait();
+                                break;
+                            } catch (InterruptedException e) {
+                                e.printStackTrace();
+                            }
                         }
+                        i++;
                     }
-                    i++;
                 }
                 if(!violate){
-                    incrementAccessCount(path);
+                    if(!isDirectoryNoLock(path))    incrementAccessCount(path);
                     return;
                 }
 
             }else{
                 int i = 0;
                 boolean violate = false;
-                while(i < this.queue.size()){
-                    Pair current = this.queue.get(i);
-                    if(current == pair) break;
+                synchronized (this){
+                    while(i < this.queue.size()){
+                        Pair current = this.queue.get(i);
+                        if(current == pair) break;
 
-                    violate = checkViolateWithWrite(current.path, current.exclusive, path);
-                    if(violate) try {
-                        wait();
-                        break;
-                    } catch (InterruptedException e) {
-                        e.printStackTrace();
+                        violate = checkViolateWithWrite(current.path, current.exclusive, path);
+                        if(violate) try {
+                            wait();
+                            break;
+                        } catch (InterruptedException e) {
+                            e.printStackTrace();
+                        }
+
+                        i++;
                     }
-
-                    i++;
                 }
 
                 if(!violate){
+                    if(!isDirectoryNoLock(path) && this.storageTable.get(path).size() > 1)  invalidateCopy(path);
                     return;
                 }
             }
@@ -360,9 +381,14 @@ public class NamingServer implements Service, Registration
 
         if(path.isRoot())   return false;
         if(!this.contains(path))    throw new FileNotFoundException("Path not found");
-        Command command = this.getDirCommand(path);
+//        Command command = this.getDirCommand(path);
 
-        boolean b = command.delete(path);
+//        boolean b = command.delete(path);
+        boolean b = true;
+        ArrayList<Command> commandList = getDirCommandList(path);
+        for(Command c : commandList){
+            b = b && delete(path, c);
+        }
         if(!b)  return b;
         if(this.isDirectoryNoLock(path)){ // If path is directory, all children are also deleted from the tree.
             Iterator<Map.Entry<Path, ArrayList<Command>>> iterator = this.commandTable.entrySet().iterator();
@@ -384,6 +410,19 @@ public class NamingServer implements Service, Registration
         return b;
     }
 
+    /**
+     * Delete the file on the specified storage server.
+     * @param path
+     * @param command_stub
+     * @return
+     */
+    private boolean delete(Path path, Command command_stub) throws RMIException {
+        if(path == null)    throw new NullPointerException("Input null");
+        if(path.isRoot())   return false;
+        boolean b = command_stub.delete(path);
+        return b;
+    }
+
 
     private Command getDirCommand(Path file) throws FileNotFoundException{
         for(Path p : this.commandTable.keySet()){
@@ -394,6 +433,18 @@ public class NamingServer implements Service, Registration
             }
         }
         throw new FileNotFoundException("Path not found");
+    }
+
+    private ArrayList<Command> getDirCommandList(Path file) throws FileNotFoundException{
+        ArrayList<Command> ret = new ArrayList<>();
+        for(Path p : this.commandTable.keySet()){
+            if(p.isSubpath(file)){
+                ArrayList<Command> commandList = this.commandTable.get(p);
+                ret.addAll(this.commandTable.get(p));
+            }
+        }
+        if(ret.size() == 0) throw new FileNotFoundException("Path not found");
+        return ret;
     }
 
     private Storage getDirStorage(Path dir) throws FileNotFoundException{
@@ -420,7 +471,7 @@ public class NamingServer implements Service, Registration
     // check if path exists
     private boolean contains(Path path){
         for(Path p: this.storageTable.keySet()){
-            if(p.isSubpath(path))   return true;
+            if(p.isSubpath(path))   return this.storageTable.get(p).size() > 0;
         }
         return false;
     }
