@@ -171,45 +171,42 @@ public class NamingServer implements Service, Registration
 
     // The following public methods are documented in Service.java.
     @Override
-    public void lock(Path path, boolean exclusive) throws FileNotFoundException, RMIException {
+    public synchronized void lock(Path path, boolean exclusive) throws FileNotFoundException, RMIException {
         if(path == null)    throw new NullPointerException();
-
         Pair pair = new Pair(path, exclusive);
-        synchronized (this){
-            this.queue.add(pair);
-        }
+        this.queue.add(pair);
 
         while(true){
-            if(!path.isRoot() && !this.contains(path)){ // remove from queue before throwing exception
-                synchronized (this){
-                    int index = 0;
-                    for(;index < this.queue.size();index++){
-                        if(queue.get(index) == pair)    break;
-                    }
-                    this.queue.remove(index);
+            // Remove from queue before throwing exception
+            // This check needs to be done every iteration because the previous pending writing request may delete path.
+            if(!path.isRoot() && !this.contains(path)){
+                int index = 0;
+                for(;index < this.queue.size();index++){
+                    if(queue.get(index) == pair)    break;
                 }
+                this.queue.remove(index);
+
                 throw new FileNotFoundException("Lock path not found");
             }
-            if(!exclusive){
+            if(!exclusive){ // Shared access
                 int i = 0;
                 boolean violate = false;
-                synchronized (this){
-                    while(i<this.queue.size()){
-                        Pair current = this.queue.get(i);
-                        if(current == pair) break;  // All previous requests have no conflicts
+                while(i<this.queue.size()){
+                    Pair current = this.queue.get(i);
+                    if(current == pair) break;  // All previous requests have no conflicts
 
-                        if(current.exclusive){
-                            violate = checkViolateWithRead(current.path, path);
-                            if(violate) try {
-                                wait();
-                                break;
-                            } catch (InterruptedException e) {
-                                e.printStackTrace();
-                            }
+                    if(current.exclusive){
+                        violate = checkViolateWithRead(current.path, path);
+                        if(violate) try {
+                            wait();
+                            break;
+                        } catch (InterruptedException e) {
+                            e.printStackTrace();
                         }
-                        i++;
                     }
+                    i++;
                 }
+
                 if(!violate){
                     if(!isDirectoryNoLock(path))    incrementAccessCount(path);
                     return;
@@ -218,21 +215,19 @@ public class NamingServer implements Service, Registration
             }else{
                 int i = 0;
                 boolean violate = false;
-                synchronized (this){
-                    while(i < this.queue.size()){
-                        Pair current = this.queue.get(i);
-                        if(current == pair) break;
+                while(i < this.queue.size()){
+                    Pair current = this.queue.get(i);
+                    if(current == pair) break;
 
-                        violate = checkViolateWithWrite(current.path, current.exclusive, path);
-                        if(violate) try {
-                            wait();
-                            break;
-                        } catch (InterruptedException e) {
-                            e.printStackTrace();
-                        }
-
-                        i++;
+                    violate = checkViolateWithWrite(current.path, current.exclusive, path);
+                    if(violate) try {
+                        wait();
+                        break;
+                    } catch (InterruptedException e) {
+                        e.printStackTrace();
                     }
+
+                    i++;
                 }
 
                 if(!violate){
