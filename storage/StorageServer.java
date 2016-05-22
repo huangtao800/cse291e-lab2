@@ -18,8 +18,8 @@ import naming.*;
 public class StorageServer implements Storage, Command
 {
     private File root;
-    private static int client_port = 7001;
-    private static int command_port = 8001;
+    private static int client_port = 7050;
+    private static int command_port = 7080;
     private Skeleton<Storage> clientSkeleton = null;
     private Skeleton<Command> commandSkeleton = null;
     /** Creates a storage server, given a directory on the local filesystem, and
